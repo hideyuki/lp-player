@@ -150,5 +150,119 @@ $ sudo alsactl store
 
 LANケーブルは邪魔です。無線LANを使いましょう。
 
-[USB無線ＬＡＮアダプタGW-USNANO2A](http://www.amazon.co.jp/gp/product/B00ESA34GA/ref=pd_lpo_sbs_dp_ss_1?pf_rd_p=466449256&pf_rd_s=lpo-top-stripe&pf_rd_t=201&pf_rd_i=B004AP8QLQ&pf_rd_m=AN1VRQENFRJN5&pf_rd_r=05BFR2RF1R2T062636FA)をRaspberryPiに接続して、以下のコマンドを実行。
+[USB無線ＬＡＮアダプタGW-USNANO2A](http://www.amazon.co.jp/gp/product/B00ESA34GA/ref=pd_lpo_sbs_dp_ss_1?pf_rd_p=466449256&pf_rd_s=lpo-top-stripe&pf_rd_t=201&pf_rd_i=B004AP8QLQ&pf_rd_m=AN1VRQENFRJN5&pf_rd_r=05BFR2RF1R2T062636FA)をRaspberryPiに接続してください。
 
+まずUSB無線LANアダプタがちゃんと認識されているかを確認。
+
+```
+$ sudo ifconfig
+eth0      Link encap:Ethernet  HWaddr b8:27:eb:6b:00:31  
+          inet addr:192.168.1.199  Bcast:192.168.1.255  Mask:255.255.255.0
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:196 errors:0 dropped:1 overruns:0 frame:0
+          TX packets:103 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000 
+          RX bytes:19028 (18.5 KiB)  TX bytes:14369 (14.0 KiB)
+
+lo        Link encap:Local Loopback  
+          inet addr:127.0.0.1  Mask:255.0.0.0
+          UP LOOPBACK RUNNING  MTU:65536  Metric:1
+          RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:0 
+          RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+
+wlan0     Link encap:Ethernet  HWaddr 00:22:cf:9a:45:9a  
+          UP BROADCAST MULTICAST  MTU:1500  Metric:1
+          RX packets:0 errors:0 dropped:3 overruns:0 frame:0
+          TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000 
+          RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+```
+
+`wlan0`がでているぞ！OK！
+
+次にAPを検索。
+
+```
+$ sudo iwlist wlan0 scan
+wlan0     Scan completed :
+          Cell 01 - Address: 26:86:4B:EE:E1:A0
+                    ESSID:"Music is Dead"
+                    Protocol:IEEE 802.11bgn
+                    Mode:Master
+                    Frequency:2.412 GHz (Channel 1)
+                    Encryption key:on
+                    Bit Rates:144 Mb/s
+                    Extra:rsn_ie=30140100000fac040100000fac040100000fac020000
+                    IE: IEEE 802.11i/WPA2 Version 1
+                        Group Cipher : CCMP
+                        Pairwise Ciphers (1) : CCMP
+                        Authentication Suites (1) : PSK
+                    Quality=100/100  Signal level=66/100
+・・・以降、同じようなAP情報がたくさん表示される・・・
+```
+
+ちゃんと繋ぎたいAP名がでてきましたか？ESSIDをチェックです！
+
+ではちゃんと設定してみましょう。
+
+```
+$ sudo sh -c 'sudo wpa_passphrase "Music is Dead" hogehogemax >> /etc/wpa_supplicant/wpa_supplicant.conf'
+```
+
+`/etc/wpa_supplicant/wpa_supplicant.conf` にいい感じに設定がされるはずです。中身を確認すると平文でパスワードがコメントで書かれているので、それは削除しておきましょう。
+
+あとは`/etc/network/interfaces`を編集♪…と思って中身を見てみるとすでに以下のように設定がなされていました。`wlan0`は`/etc/wpa_supplicant/wpa_supplicant.conf`の設定が反映されるようになっています。
+
+```
+$ sudo vi /etc/network/interfaces
+
+auto lo
+
+iface lo inet loopback
+iface eth0 inet dhcp
+
+allow-hotplug wlan0
+iface wlan0 inet manual
+wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf
+iface default inet dhcp
+```
+
+では`wlan0`にIPアドレスが割り当てられるようにしてみる。
+
+```
+$ sudo ifdown wlan0
+$ sudo ifup wlan0
+$ sudo ifconfig wlan0
+wlan0     Link encap:Ethernet  HWaddr 00:22:cf:9a:45:9a  
+          inet addr:192.168.1.106  Bcast:192.168.1.255  Mask:255.255.255.0
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:547 errors:0 dropped:9 overruns:0 frame:0
+          TX packets:4 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000 
+          RX bytes:98701 (96.3 KiB)  TX bytes:1028 (1.0 KiB)
+```
+
+`inet addr:192.168.1.106`となってます！(IPアドレスはちゃんと控えておきましょう)
+
+これでLANケーブルはおさらば！すばやくLANケーブルを引き抜いてください。無線LAN経由でSSHログインしてみましょう。Mac上から
+
+```
+$ ssh pi@192.168.1.106
+```
+
+接続できたらRaspberryPiの無線LAN設定は完了です。
+
+
+#### いろいろインストール
+
+```
+$ sudo apt-get isntall vim mplayer
+```
+
+
+#### 途中
+- pythonなど
+- https://github.com/rg3/youtube-dl/
+- mp4とってきて再生
